@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naat Hub - Islamic Devotional Music</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <i class="fas fa-mosque"></i> Naat Hub
+            </a>
+            <div class="nav-links">
+                <a href="/" class="active"><i class="fas fa-home"></i> Home</a>
+                <a href="/naats.html"><i class="fas fa-music"></i> Naats</a>
+                <a href="/login.html" id="loginLink"><i class="fas fa-sign-in-alt"></i> Login</a>
+                <a href="/register.html" id="registerLink"><i class="fas fa-user-plus"></i> Register</a>
+                <a href="/profile.html" id="profileLink" class="hidden"><i class="fas fa-user"></i> Profile</a>
+                <a href="/upload.html" id="uploadLink" class="hidden"><i class="fas fa-upload"></i> Upload</a>
+                <a href="#" id="logoutLink" class="hidden"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Welcome Section -->
+        <div class="hero">
+            <h1><i class="fas fa-heart"></i> Welcome to Naat Hub</h1>
+            <p>Listen to beautiful Islamic devotional music, naats, hamd, and nasheeds</p>
+            <div class="cta-buttons">
+                <a href="/naats.html" class="btn btn-primary">
+                    <i class="fas fa-play-circle"></i> Browse All Naats
+                </a>
+            </div>
+        </div>
+
+        <!-- Simple Features Section -->
+        <div class="features">
+            <div class="feature-card">
+                <i class="fas fa-music"></i>
+                <h3>Islamic Music</h3>
+                <p>Collection of Naats, Hamd, and Nasheeds</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-user-friends"></i>
+                <h3>Community</h3>
+                <p>Join listeners and artists worldwide</p>
+            </div>
+            <div class="feature-card">
+                <i class="fas fa-headphones"></i>
+                <h3>Listen Free</h3>
+                <p>24/7 access to devotional music</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer"></div>
+
+    <script>
+        // Check authentication on page load
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        // User is logged in
+                        document.getElementById('loginLink').classList.add('hidden');
+                        document.getElementById('registerLink').classList.add('hidden');
+                        document.getElementById('profileLink').classList.remove('hidden');
+                        document.getElementById('logoutLink').classList.remove('hidden');
+                        
+                        // Show upload link if user is artist or admin
+                        if (data.user.role === 'artist' || data.user.role === 'admin') {
+                            document.getElementById('uploadLink').classList.remove('hidden');
+                        }
+                    }
+                }
+            } catch (error) {
+                // User is not logged in - keep login/register links visible
+                console.log('User not authenticated');
+            }
+        }
+        
+        // Load stats (optional - remove if you don't need)
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/naats');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        document.getElementById('totalNaats').textContent = data.pagination?.total || 0;
+                    }
+                }
+            } catch (error) {
+                console.log('Could not load stats');
+            }
+        }
+        
+        // Check API status (optional)
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('/api/naats');
+                document.getElementById('apiStatus').textContent = response.ok ? '✅ Online' : '❌ Offline';
+            } catch (error) {
+                document.getElementById('apiStatus').textContent = '❌ Offline';
+            }
+        }
+        
+        // Logout function
+        document.getElementById('logoutLink')?.addEventListener('click', async function(e) {
+            e.preventDefault();
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        });
+        
+        // Toast notification function
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        // Initialize
+        checkAuth();
+        loadStats();
+        checkApiStatus();
+    </script>
+</body>
+</html>

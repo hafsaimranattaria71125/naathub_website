@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browse Naats - Naat Hub</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <i class="fas fa-mosque"></i> Naat Hub
+            </a>
+            <div class="nav-links">
+                <a href="/"><i class="fas fa-home"></i> Home</a>
+                <a href="/naats.html" class="active"><i class="fas fa-music"></i> Naats</a>
+                <a href="/profile.html" id="profileLink" class="hidden"><i class="fas fa-user"></i> Profile</a>
+                <a href="/upload.html" id="uploadLink" class="hidden"><i class="fas fa-upload"></i> Upload</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-music"></i> Browse Naats</h1>
+            <p>Listen to our collection of Islamic devotional music</p>
+        </div>
+        
+        <!-- Search and Filters -->
+        <div class="filters">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search naats..." oninput="searchNaats()">
+                <i class="fas fa-search"></i>
+            </div>
+            
+            <div class="category-filters">
+                <button class="btn-filter active" onclick="filterNaats('all')">All</button>
+                <button class="btn-filter" onclick="filterNaats('naat')">Naats</button>
+                <button class="btn-filter" onclick="filterNaats('hamd')">Hamd</button>
+                <button class="btn-filter" onclick="filterNaats('nasheed')">Nasheed</button>
+            </div>
+        </div>
+        
+        <!-- Naats Grid -->
+        <div id="naatsGrid" class="naats-grid">
+            <div class="loading">Loading naats...</div>
+        </div>
+        
+        <!-- Pagination -->
+        <div class="pagination">
+            <button id="prevBtn" onclick="prevPage()" disabled>
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <span id="pageInfo">Page 1 of 1</span>
+            <button id="nextBtn" onclick="nextPage()" disabled>
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentCategory = 'all';
+        let currentSearch = '';
+        
+        // Check auth on load
+        checkAuth();
+        
+        // Load naats on page load
+        loadNaats();
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.user) {
+                        document.getElementById('profileLink').classList.remove('hidden');
+                        
+                        if (data.user.role === 'artist' || data.user.role === 'admin') {
+                            document.getElementById('uploadLink').classList.remove('hidden');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('User not authenticated');
+            }
+        }
+        
+        async function loadNaats() {
+            const grid = document.getElementById('naatsGrid');
+            grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading naats...</div>';
+            
+            console.log('Loading naats...');
+            
+            try {
+                let url = `/api/naats?page=${currentPage}&limit=12`;
+                if (currentCategory !== 'all') {
+                    url += `&category=${currentCategory}`;
+                }
+                if (currentSearch) {
+                    url += `&search=${encodeURIComponent(currentSearch)}`;
+                }
+                
+                console.log('Fetching from:', url);
+                
+                const response = await fetch(url);
+                console.log('Response status:', response.status);
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                if (data.success) {
+                    console.log('Number of naats:', data.data?.length || 0);
+                    displayNaats(data.data || []);
+                    updatePagination(data.pagination || {page: 1, pages: 1});
+                } else {
+                    console.error('API error:', data);
+                    grid.innerHTML = '<div class="error">Failed to load naats</div>';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                grid.innerHTML = '<div class="error">Error loading naats</div>';
+            }
+        }
+        
+        function displayNaats(naats) {
+    const grid = document.getElementById('naatsGrid');
+    
+    if (!naats || naats.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-music"></i> No naats found</div>';
+        return;
+    }
+    
+    grid.innerHTML = naats.map(naat => `
+        <div class="naat-card" id="naat-${naat.naat_id}">
+            <div class="naat-header">
+                <h3>${naat.title || 'Untitled'}</h3>
+                <span class="category">${naat.category || 'naat'}</span>
+            </div>
+            
+            <div class="naat-info">
+                <p><i class="fas fa-user"></i> ${naat.artist_name || 'Unknown Artist'}</p>
+                <p><i class="fas fa-clock"></i> ${formatTime(naat.duration_seconds || 0)}</p>
+                <p><i class="fas fa-heart"></i> ${naat.like_count || 0} likes</p>
+            </div>
+            
+            <div class="naat-actions">
+                <button onclick="playNaat('${naat.audio_filename}')" class="btn-play">
+                    <i class="fas fa-play"></i> Play
+                </button>
+                <button onclick="likeNaat(${naat.naat_id})" class="btn-like">
+                    <i class="fas fa-heart"></i> Like
+                </button>
+                
+                <!-- Delete button (only show if user is admin or artist owns this naat) -->
+                ${window.currentUser && (window.currentUser.role === 'admin' || 
+                  window.currentUser.userId === naat.artist_id) ? `
+                <button onclick="deleteNaat(${naat.naat_id})" class="btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                ` : ''}
+                
+                <!-- Report button -->
+                <button onclick="reportNaat(${naat.naat_id})" class="btn-report">
+                    <i class="fas fa-flag"></i> Report
+                </button>
+            </div>
+        </div>
+    `).join('');
+}function displayNaats(naats) {
+    const grid = document.getElementById('naatsGrid');
+    
+    if (!naats || naats.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-music"></i> No naats found</div>';
+        return;
+    }
+    
+    grid.innerHTML = naats.map(naat => `
+        <div class="naat-card" id="naat-${naat.naat_id}">
+            <div class="naat-header">
+                <h3>${naat.title || 'Untitled'}</h3>
+                <span class="category">${naat.category || 'naat'}</span>
+            </div>
+            
+            <div class="naat-info">
+                <p><i class="fas fa-user"></i> ${naat.artist_name || 'Unknown Artist'}</p>
+                <p><i class="fas fa-clock"></i> ${formatTime(naat.duration_seconds || 0)}</p>
+                <p><i class="fas fa-heart"></i> ${naat.like_count || 0} likes</p>
+            </div>
+            
+            <div class="naat-actions">
+                <button onclick="playNaat('${naat.audio_filename}')" class="btn-play">
+                    <i class="fas fa-play"></i> Play
+                </button>
+                <button onclick="likeNaat(${naat.naat_id})" class="btn-like">
+                    <i class="fas fa-heart"></i> Like
+                </button>
+                
+                <!-- Delete button (only show if user is admin or artist owns this naat) -->
+                ${window.currentUser && (window.currentUser.role === 'admin' || 
+                  window.currentUser.userId === naat.artist_id) ? `
+                <button onclick="deleteNaat(${naat.naat_id})" class="btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                ` : ''}
+                
+                <!-- Report button -->
+                <button onclick="reportNaat(${naat.naat_id})" class="btn-report">
+                    <i class="fas fa-flag"></i> Report
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+        // FIXED: Redirect directly to MP3 file
+        function playNaat(filename) {
+            // Direct redirect to MP3 file
+            window.location.href = `/Public/${filename}`;
+        }
+        
+        async function likeNaat(naatId) {
+            try {
+                const response = await fetch(`/api/naats/${naatId}/like`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + getCookie('authToken')
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('Naat liked!', 'success');
+                    loadNaats();
+                } else {
+                    showToast(data.message || 'Please login to like naats', 'error');
+                }
+            } catch (error) {
+                showToast('Please login to like naats', 'error');
+            }
+        }
+        
+        // Helper function to get cookie
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+        
+        function filterNaats(category) {
+            currentCategory = category;
+            currentPage = 1;
+            
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            loadNaats();
+        }
+        
+        function searchNaats() {
+            currentSearch = document.getElementById('searchInput').value;
+            currentPage = 1;
+            loadNaats();
+        }
+        
+        function updatePagination(pagination) {
+            totalPages = pagination.pages || 1;
+            
+            document.getElementById('pageInfo').textContent = 
+                `Page ${pagination.page || 1} of ${totalPages}`;
+            
+            document.getElementById('prevBtn').disabled = (pagination.page || 1) <= 1;
+            document.getElementById('nextBtn').disabled = (pagination.page || 1) >= totalPages;
+        }
+        
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadNaats();
+            }
+        }
+        
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadNaats();
+            }
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        // Delete naat function
+async function deleteNaat(naatId) {
+    if (!confirm('Are you sure you want to delete this naat?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/naats/${naatId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': 'Bearer ' + getCookie('authToken')
+            }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('Naat deleted successfully', 'success');
+            // Remove the naat card from UI
+            document.getElementById(`naat-${naatId}`).remove();
+        } else {
+            showToast(data.message || 'Failed to delete naat', 'error');
+        }
+    } catch (error) {
+        showToast('Error deleting naat', 'error');
+    }
+}
+
+// Report naat function
+async function reportNaat(naatId) {
+    const reason = prompt('Please enter reason for reporting this naat:');
+    if (!reason) return;
+    
+    try {
+        const response = await fetch('/api/reports', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + getCookie('authToken')
+            },
+            body: JSON.stringify({
+                reported_naat_id: naatId,
+                description: reason,
+                report_type: 'inappropriate'
+            })
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            showToast('Naat reported successfully', 'success');
+        } else {
+            showToast(data.message || 'Failed to report naat', 'error');
+        }
+    } catch (error) {
+        showToast('Please login to report naats', 'error');
+    }
+}
+    </script>
+</body>
+</html>

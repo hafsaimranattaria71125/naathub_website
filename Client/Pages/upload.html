@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Naat - Naat Hub</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <i class="fas fa-mosque"></i> Naat Hub
+            </a>
+            <div class="nav-links">
+                <a href="/"><i class="fas fa-home"></i> Home</a>
+                <a href="/naats.html"><i class="fas fa-music"></i> Naats</a>
+                <a href="/profile.html"><i class="fas fa-user"></i> Profile</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-container">
+            <div class="upload-card">
+                <h1><i class="fas fa-cloud-upload-alt"></i> Upload Naat</h1>
+                <p>Share your beautiful Islamic devotional music with the community</p>
+                
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="title"><i class="fas fa-heading"></i> Naat Title *</label>
+                        <input type="text" id="title" name="title" required placeholder="Enter naat title">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description"><i class="fas fa-file-alt"></i> Description</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Describe this naat..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category"><i class="fas fa-tag"></i> Category *</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select category</option>
+                            <option value="naat">Naat</option>
+                            <option value="hamd">Hamd</option>
+                            <option value="nasheed">Nasheed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="duration"><i class="fas fa-clock"></i> Duration (seconds) *</label>
+                        <input type="number" id="duration" name="duration_seconds" required min="10" placeholder="Duration in seconds">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="audioFile"><i class="fas fa-file-audio"></i> Audio File *</label>
+                        <div class="file-upload">
+                            <input type="file" id="audioFile" name="audio" accept="audio/mpeg,audio/mp3" required>
+                            <label for="audioFile" class="file-label">
+                                <i class="fas fa-upload"></i> Choose MP3 File
+                            </label>
+                            <span id="fileName">No file chosen</span>
+                        </div>
+                        <small>Max file size: 10MB | Allowed: MP3 only</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-upload"></i> Upload Naat
+                    </button>
+                </form>
+                
+                <div id="uploadMessage" class="message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is logged in and is artist/admin
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/me');
+                if (!response.ok) {
+                  const currentPage = window.location.pathname;
+window.location.href = `/login.html?redirect=${encodeURIComponent(currentPage)}`;
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Check if user can upload (artist or admin)
+                    if (data.user.role !== 'artist' && data.user.role !== 'admin') {
+                        window.location.href = '/';
+                    }
+                }
+            } catch (error) {
+               const currentPage = window.location.pathname;
+window.location.href = `/login.html?redirect=${encodeURIComponent(currentPage)}`;
+            }
+        }
+        
+        // File upload preview
+        document.getElementById('audioFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
+            document.getElementById('fileName').textContent = fileName;
+        });
+        
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            const messageDiv = document.getElementById('uploadMessage');
+            messageDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Uploading naat...</div>';
+            
+            try {
+                const response = await fetch('/api/naats/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageDiv.innerHTML = `<div class="success"><i class="fas fa-check-circle"></i> ${data.message}</div>`;
+                    form.reset();
+                    document.getElementById('fileName').textContent = 'No file chosen';
+                    
+                    // Redirect to naats page after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/naats.html';
+                    }, 2000);
+                } else {
+                    messageDiv.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i> ${data.message}</div>`;
+                }
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i> Upload failed. Please try again.</div>`;
+            }
+        });
+        
+        // Initialize
+        checkAuth();
+    </script>
+</body>
+</html>

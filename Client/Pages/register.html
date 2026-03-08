@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Naat Hub</title>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-brand">
+                <i class="fas fa-mosque"></i> Naat Hub
+            </a>
+            <a href="/" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+    </nav>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h1><i class="fas fa-user-plus"></i> Register</h1>
+            
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="full_name"><i class="fas fa-user"></i> Full Name</label>
+                    <input type="text" id="full_name" name="full_name" required placeholder="Enter your full name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email"><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password"><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Choose a password">
+                    <small>Note: Passwords are stored in plain text for this academic project</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role"><i class="fas fa-user-tag"></i> Role</label>
+                    <select id="role" name="role">
+                        <option value="listener">Listener</option>
+                        <option value="artist">Artist</option>
+                        <option value="moderator">Moderator (Request only)</option>
+                        <option value="admin">Admin (Request only)</option>
+                    </select>
+                    <small>Note: Admin/Moderator roles require approval</small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+                
+                <div class="auth-links">
+                    <p>Already have an account? <a href="/login.html">Login here</a></p>
+                </div>
+            </form>
+            
+            <div id="registerMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                full_name: document.getElementById('full_name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value
+            };
+            
+            const messageDiv = document.getElementById('registerMessage');
+            messageDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Creating account...</div>';
+            
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.status === 201 || data.success === true) {
+    // Success - show message and redirect
+    messageDiv.innerHTML = '<div class="success"><i class="fas fa-check-circle"></i> Registration successful! Redirecting...</div>';
+    
+    // Redirect to login page after 2 seconds
+    setTimeout(() => {
+        window.location.href = '/login.html';
+    }, 2000);
+} else {
+    // Show error message from server
+    messageDiv.innerHTML = `<div class="error"><i class="fas fa-exclamation-circle"></i> ${data.message || 'Registration failed'}</div>`;
+}
+            } catch (error) {
+                messageDiv.innerHTML = `<div class="error">Registration failed. Please try again.</div>`;
+            }
+        });
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            document.getElementById('toastContainer').appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
