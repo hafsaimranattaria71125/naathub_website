@@ -37,6 +37,7 @@ Web Project/
     ├── db.js
     ├── cache.js
     ├── index.js
+    ├── schema.sql
     └── package.json
 ```
 
